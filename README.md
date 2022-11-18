@@ -1,1 +1,2 @@
-# chelbot
+#   
+schedule and standings
