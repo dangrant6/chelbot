@@ -1,2 +1,2 @@
 #   
-schedule and standings
+scores and standings

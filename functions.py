@@ -1,143 +1,61 @@
-import requests
-import datetime
-import json
 import discord
 
-class botFuncs:
-    def __init__(self):
-        self.NHLAPI = "http://statsapi.web.nhl.com/api/v1"
-        self.SCHEDULE = "/schedule"
+from discord.ext import commands
 
-    def route(self, msg):
+import aiohttp
 
-        msgarr = msg.split()
+import bot
 
-        msgarr.pop(0)
+SCHED_API = 'https://statsapi.web.nhl.com/api/v1/schedule'
+NHL_API = 'https://statsapi.web.nhl.com/api/v1'
 
-        if not msgarr:
-            return None
+client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 
-        if msgarr[0].lower() == 'schedule':
-            if len(msgarr) > 1:
-                return self.getScheduleByDate(msgarr[1])
-            else:
-                return self.getDailySchedule()
 
-    def getDailySchedule(self):
+@client.command()
+async def scores(ctx):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f'{NHL_API}/schedule?expand=schedule.linescore') as response:
+            data = await response.json()
+            games = data['dates'][0]['games']
+            if len(games) == 0:
+                await ctx.send('No NHL games today.')
+                return
 
-        result = requests.get(self.NHLAPI+self.SCHEDULE)
-        data = result.json()
-        try:
-            test = data['dates'][0]['games']
-            return self.formatSchedule(data)
-        except:
-            return self.getScheduleByDate('tomorrow')
+            scores_message = 'Today\'s Scores:\n'
+            for game in games:
+                home_team = game['teams']['home']['team']['name']
+                home_score = game['teams']['home']['score']
+                away_team = game['teams']['away']['team']['name']
+                away_score = game['teams']['away']['score']
+                status = game['status']['detailedState']
+                period = game['linescore']['currentPeriod']
+                clock = game['linescore']['currentPeriodTimeRemaining']
 
-        return "Error"
+                scores_message += f'{away_team} {away_score} - {home_team} {home_score} ({status}) - Period: {period} - Clock: {clock}\n'
 
-    def getScheduleByDate(self, date):
-        print("getScheduleByDate entered")
-        if date.lower() == 'tomorrow':
-            x = datetime.datetime.now()
-            print(x)
-            print(x.hour)
-            if int(x.hour) < 9:
-                date = str(x).split()[0]
-            else:
-                date = str(x + datetime.timedelta(days=1)).split()[0]
+            await ctx.send(scores_message)
 
-        else:
-            return "Future lookup currently only supports 'tomorrow'"
+@client.command()
+async def standings(ctx):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f'{NHL_API}/standings') as response:
+            data = await response.json()
+            standings = data['records']
 
-        print("Searching date:"+date)
-        req = self.NHLAPI + self.SCHEDULE + '?date=' + date
-
-        print(req)
-
-        result = requests.get(req)
-
-        data = result.json()
-
-        return self.formatSchedule(data)
-
-    def formatSchedule(self, data):
-
-        thegoods = f"```js\nSchedule for {data['dates'][0]['date']}"
-
-        for x in data['dates'][0]['games']:
-            thegoods += '\n'
-            thegoods += "Status: "  # + x['status']['abstractGameState']
-
-            gamestatus = x['status']['abstractGameState']
-
-            if gamestatus == 'Preview':
-                thegoods += self.formatDate(x['gameDate'])
-            elif gamestatus == 'Live':
-                thegoods += 'Live '
-            elif gamestatus == 'Final':
-                thegoods += 'Final'
-            else:
-                thegoods += "Date/Status error"
-
-            thegoods += "\tTeams: " + \
-                x['teams']['home']['team']['name'] + " vs " + \
-                x['teams']['away']['team']['name']
-            if gamestatus != 'Preview':
-                thegoods += "\tScore:\t" + \
-                    str(x['teams']['home']['score']) + " : " + \
-                    str(x['teams']['away']['score'])
-
-        thegoods += "```"
-        return thegoods
-
-    def formatDate(self, date):
-
-        date = date.split('T')[1]
-        date = date.split(':')
-
-        if int(date[0]) < 12:
-            date[0] = str(int(date[0])+24)
-        date[0] = str(int(date[0])-16)
-
-        print(date)
-
-        final = ''
-
-        for x in date:
-            if x == '0':
-                x = '12'
-            final += x + ':'
-
-        final = final[0:len(final)-5]
-
-        final = final + " ET"
-
-        return final
-
-    #Gets Standings Function
-    def getStandings(ctx, division):
-        base_url = 'https://statsapi.web.nhl.com/api/v1/standings'
-        response = requests.get(base_url)
-        standingsJSON = response.text
-        nhlStandings = json.loads(standingsJSON)
-        divisionName = {"Pacific", "Central",
-                        "Atlantic", "Metropolitan"}
-
-        print(divisionName[0])
-
-        divisionNum = 3
-        numTeams = len(nhlStandings['records'][divisionNum]['teamRecords'])
-        x = 0
-        myEmbed = discord.Embed(title=f"Standings For: ",
-                                description=f" {nhlStandings['records'][divisionNum]['division']['name']} \n", color=0x00ff00)
-        myEmbed.set_author(name=ctx.author.display_name,
-                        url="https://www.nhl.com/", icon_url=ctx.author.avatar_url)
-        myEmbed.set_thumbnail(
-            url=f"https://www-league.nhlstatic.com/images/logos/league-dark/133-flat.svg")
-
-        nhlStandings = nhlStandings['records'][divisionNum]['teamRecords']
-
-        for x in range(numTeams):
-            myEmbed.add_field(name=f"{x+1}. {nhlStandings[x]['team']['name']}", value=f" > Record [{nhlStandings[x]['gamesPlayed']}GP]: ({nhlStandings[x]['leagueRecord']['wins']}W - {nhlStandings[x]['leagueRecord']['losses']}L - {nhlStandings[x]['leagueRecord']['ot']}OT - {nhlStandings[x]['points']}P) \n > League Rank: {nhlStandings[x]['leagueRank']} \n > Streak: {nhlStandings[x]['streak']['streakCode']} \n > GA: {nhlStandings[x]['goalsAgainst']} - GF: {nhlStandings[x]['goalsScored']}  ", inline=False)
-
-        return myEmbed
+            standings_message = 'NHL Standings:\n\n'
+            for record in standings:
+                division_name = record['division']['name']
+                standings_message += f'{division_name}\n'
+                standings_message += '--------------------------\n'
+                for team in record['teamRecords']:
+                    team_name = team['team']['name']
+                    points = team['points']
+                    games_played = team['gamesPlayed']
+                    wins = team['leagueRecord']['wins']
+                    losses = team['leagueRecord']['losses']
+                    ot_losses = team['leagueRecord']['ot']
+                    standings_message += f'{team_name}: {points} points ({wins}-{losses}-{ot_losses}), {games_played} games played\n'
+                standings_message += '\n'
+    
+    await ctx.send(standings_message)

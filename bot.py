@@ -1,20 +1,35 @@
-import os
 import discord
+from discord.ext import commands
 import functions
+import os
+from dotenv import load_dotenv
 
 
-TOKEN = ('DISCORD_TOKEN')
-client = discord.Client(intents=discord.Intents.all())
-messagerouter = functions.botFuncs()
+def run_bot():
+    load_dotenv()
+    TOKEN = os.getenv('DISCORD_TOKEN')
 
-@client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
+    client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
 
-    if message.content[0:2] == 'HB':
-        result = messagerouter.route(message.content)
-        if result:
-            await message.channel.send(result)
+    @client.event
+    async def on_ready():
+        print('Bot is ready!')
 
-client.run(TOKEN)
+    @client.command()
+    async def hello(ctx):
+        await ctx.send("Hello! I'm ChelBot. I can provide you with NHL scores and stat leaders.\nType !how for info on commands.")
+
+    @client.command()
+    async def how(ctx):
+        await ctx.send("Use !nhl to view scores.\nUse !stats followed by the stat you want to to view stat leaders (ex. !stats points).")
+
+    @client.command()
+    async def scores(ctx):
+        scores_message = await functions.scores(ctx)
+        
+    @client.command()
+    async def standings(ctx):
+        standings_message = await functions.standings(ctx)
+
+    client.load_extension('functions')
+    client.run(TOKEN)
