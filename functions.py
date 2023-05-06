@@ -1,16 +1,11 @@
 import discord
-
 from discord.ext import commands
-
 import aiohttp
-
 import bot
 
-SCHED_API = 'https://statsapi.web.nhl.com/api/v1/schedule'
 NHL_API = 'https://statsapi.web.nhl.com/api/v1'
 
 client = commands.Bot(command_prefix='!', intents=discord.Intents.all())
-
 
 @client.command()
 async def scores(ctx):

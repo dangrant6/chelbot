@@ -4,7 +4,6 @@ import functions
 import os
 from dotenv import load_dotenv
 
-
 def run_bot():
     load_dotenv()
     TOKEN = os.getenv('DISCORD_TOKEN')
