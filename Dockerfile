@@ -10,4 +10,4 @@ COPY . .
 
 RUN apt-get update && apt-get install -y ffmpeg
 
-CMD ["python", "bot.py"]
+CMD ["python", "-u", "bot.py"]

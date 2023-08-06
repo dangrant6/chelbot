@@ -32,3 +32,6 @@ def run_bot():
 
     client.load_extension('functions')
     client.run(TOKEN)
+
+if __name__ == "__main__":
+    run_bot()
