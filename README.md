@@ -1,1 +1,1 @@
-#   Up-to-date scores and Standings from the NHL
+#   Up-to-date scores and standings from the NHL
